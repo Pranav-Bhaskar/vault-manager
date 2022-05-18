@@ -82,20 +82,13 @@ class VaultManagerPolicies:
         self.logger.info("Distant policies found:" + str(distant_policies))
         for policy in distant_policies:
             # policy name will always be 'type_name_policy'
-            splitted = policy.split("_")
-            if len(splitted) != 3 or splitted[2] != "policy":
-                self.logger.warning("Policy " + policy +
-                                    " does not match policy name pattern "
-                                    "and will not be pulled")
-                continue
-            # create the parent folder policy if doest not exists (user, etc...)
-            policy_folder = os.path.join(self.policies_folder, splitted[0])
+            policy_folder = self.policies_folder
             if not os.path.isdir(policy_folder):
                 self.logger.debug("Folder " + policy_folder +
                                   " doest not exists, creating...")
                 os.makedirs(policy_folder)
             # create the policy file
-            policy_path = os.path.join(policy_folder, splitted[1] + ".hcl")
+            policy_path = os.path.join(policy_folder, policy + ".hcl")
             with open(policy_path, 'w+') as fd:
                 fd.write(self.vault_client.policy_get(policy))
                 self.logger.info("Policy " + policy_path + " saved")
@@ -111,16 +104,13 @@ class VaultManagerPolicies:
         local_policies = []
         # Building local policies list
         for policy_file in glob.iglob(os.path.join(self.policies_folder,
-                                                   "*/**/*.hcl"), recursive=True):
-
-            prefix = os.path.relpath(policy_file, self.policies_folder)
-            policy_name = prefix.replace("/", "_")
+                                                   "*.hcl"), recursive=True):
+            name = os.path.splitext(os.path.basename(policy_file))[0]
             self.logger.debug("Local policy %s - name: %s found"
-                              % (policy_file, policy_name))
+                              % (policy_file, name))
             with open(policy_file, 'r') as fd:
-                local_policies.append(
-                    {"name": policy_name.replace(".hcl", "_policy"),
-                     "content": fd.read()})
+                local_policies.append({"name": name,
+                                       "content": fd.read()})
         # Removing distant policies which doesn't exists locally
         for distant_policy in distant_policies:
             if distant_policy not in [pol["name"] for pol in local_policies]:
